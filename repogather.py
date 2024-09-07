@@ -26,13 +26,14 @@ def get_user_confirmation(total_tokens, cost, num_files, model):
             print("Please enter 'y' for yes or 'n' for no.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Filter and rank repository files based on relevance to a query.")
-    parser.add_argument("query", help="Natural language query to filter files")
+    parser = argparse.ArgumentParser(description="Gather and analyze repository files based on relevance to a query.")
+    parser.add_argument("query", nargs='?', default=None, help="Natural language query to filter files")
     parser.add_argument("--include-test", action="store_true", help="Include test files")
     parser.add_argument("--include-config", action="store_true", help="Include configuration files")
     parser.add_argument("--relevance-threshold", type=int, default=50, help="Relevance threshold (0-100)")
     parser.add_argument("--model", default="gpt-4o-mini-2024-07-18", choices=MODELS.keys(), help="LLM model to use")
     parser.add_argument("--openai-key", help="OpenAI API key")
+    parser.add_argument("--all", action="store_true", help="Return all files without using LLM")
     args = parser.parse_args()
 
     # Get the repository root directory
@@ -40,6 +41,32 @@ def main():
 
     # Filter code files
     code_files = list(filter_code_files(repo_root, include_test=args.include_test, include_config=args.include_config))
+
+    if args.all:
+        output_string = ""
+        for file_path in code_files:
+            full_path = repo_root / file_path
+            output_string += f"\n\n--- {file_path} ---\n"
+            try:
+                with open(full_path, 'r', encoding='utf-8') as f:
+                    output_string += f.read()
+            except Exception as e:
+                output_string += f"Error reading file: {e}\n"
+
+        print("\nAll Files:")
+        print(output_string)
+
+        try:
+            pyperclip.copy(output_string)
+            print("\nAll file contents copied to clipboard.")
+        except pyperclip.PyperclipException:
+            print("\nUnable to copy to clipboard. Please copy the output manually.")
+
+        return
+
+    if not args.query:
+        print("Error: You must provide a query when not using the --all option.")
+        sys.exit(1)
 
     # Count tokens and calculate cost
     total_tokens, file_contents = count_tokens(repo_root, code_files)
