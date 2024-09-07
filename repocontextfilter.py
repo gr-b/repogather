@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import sys
+from pathlib import Path
+import pyperclip
+
+from file_filter import filter_code_files
+from token_counter import count_tokens, calculate_cost, MODELS
+from llm_query import query_llm
+from output_processor import process_output
+from openai_client import OpenAIClient
+
+def get_user_confirmation(total_tokens, cost, num_files, model):
+    print(f"\nPreparing to send {total_tokens} tokens from {num_files} files to the LLM.")
+    print(f"Estimated cost: ${cost:.4f}")
+    print(f"Selected model: {model}")
+    while True:
+        response = input("Do you want to proceed? (y/n): ").lower()
+        if response in ['y', 'yes']:
+            return True
+        elif response in ['n', 'no']:
+            return False
+        else:
+            print("Please enter 'y' for yes or 'n' for no.")
+
+def main():
+    parser = argparse.ArgumentParser(description="Filter and rank repository files based on relevance to a query.")
+    parser.add_argument("query", help="Natural language query to filter files")
+    parser.add_argument("--include-test", action="store_true", help="Include test files")
+    parser.add_argument("--include-config", action="store_true", help="Include configuration files")
+    parser.add_argument("--relevance-threshold", type=int, default=50, help="Relevance threshold (0-100)")
+    parser.add_argument("--model", default="gpt-4o-mini-2024-07-18", choices=MODELS.keys(), help="LLM model to use")
+    parser.add_argument("--openai-key", help="OpenAI API key")
+    args = parser.parse_args()
+
+    # Get the repository root directory
+    repo_root = Path.cwd()
+
+    # Filter code files
+    code_files = list(filter_code_files(repo_root, include_test=args.include_test, include_config=args.include_config))
+
+    # Count tokens and calculate cost
+    total_tokens, file_contents = count_tokens(repo_root, code_files)
+    cost = calculate_cost(total_tokens, args.model)
+
+    # Get user confirmation
+    if not get_user_confirmation(total_tokens, cost, len(code_files), args.model):
+        print("Operation cancelled by user.")
+        sys.exit(0)
+
+    # Initialize OpenAIClient
+    client = OpenAIClient(api_key=args.openai_key)
+
+    # Query LLM
+    response = query_llm(args.query, file_contents, args.model, client)
+
+    # Process output
+    relevant_files = process_output(response, args.relevance_threshold)
+
+    # Print relevant files and copy to clipboard
+    output = "\n".join(str(file) for file in relevant_files)
+    print("Relevant files:")
+    print(output)
+
+    try:
+        pyperclip.copy(output)
+        print("Relevant files copied to clipboard.")
+    except pyperclip.PyperclipException:
+        print("Unable to copy to clipboard. Please copy the output manually.")
+
+if __name__ == "__main__":
+    main()

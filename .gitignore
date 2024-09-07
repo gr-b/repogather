@@ -1,0 +1,4 @@
+prompt
+.env
+.idea/
+__pycache__/
