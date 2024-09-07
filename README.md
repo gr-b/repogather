@@ -1,8 +1,9 @@
-# repocontextfilter
+# repogather
 
-repocontextfilter is a command-line tool intended for use with LLM code understanding or code generation.
-It analyzes and ranks the relevance of files in a code repository based on a natural language query (using
-an LLM, but making some a priori exclusions like tests or config -- but this is configurable).
+repogather is a command-line tool that copies all relevant files (with their relative paths) in a repository to the clipboard.
+It is intended to be used in LLM code understanding or code generation workflows. It uses gpt-4o-mini (configurable)
+to decide file relevance, but can also be used without an LLM to return all files, with non-AI filters (such
+as excluding tests or config files).
 
 ## Features
 
@@ -15,10 +16,10 @@ an LLM, but making some a priori exclusions like tests or config -- but this is 
 
 ## Installation
 
-Install repocontextfilter using pip:
+Install repogather using pip:
 
 ```
-pip install repocontextfilter
+pip install repogather
 ```
 
 ## Setup
@@ -33,10 +34,10 @@ Set up your OpenAI API key using one of the following methods:
 
 ## Usage
 
-After installation, you can run repocontextfilter from the command line:
+After installation, you can run repogather from the command line:
 
 ```
-repocontextfilter "Your query here" [OPTIONS]
+repogather "Your query here" [OPTIONS]
 ```
 
 ### Options
@@ -50,7 +51,7 @@ repocontextfilter "Your query here" [OPTIONS]
 ### Example
 
 ```
-repocontextfilter "Find files related to user authentication" --include-config --relevance-threshold 70 --model gpt-4o-2024-08-06
+repogather "Find files related to user authentication" --include-config --relevance-threshold 70 --model gpt-4o-2024-08-06
 ```
 
 This command will:
@@ -61,7 +62,7 @@ This command will:
 
 ## How It Works
 
-repocontextfilter performs the following steps:
+repogather performs the following steps:
 
 1. Scans the current directory and its subdirectories for code files
 2. Filters out test and configuration files (unless included via options)
@@ -73,5 +74,5 @@ repocontextfilter performs the following steps:
 
 ## Note
 
-repocontextfilter requires an active OpenAI API key to function. It will prompt you to confirm the expected cost of the 
+repogather requires an active OpenAI API key to function. It will prompt you to confirm the expected cost of the 
 query (in input tokens) before progressing.

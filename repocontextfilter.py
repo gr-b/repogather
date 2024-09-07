@@ -57,18 +57,19 @@ def main():
     response = query_llm(args.query, file_contents, args.model, client)
 
     # Process output
-    relevant_files = process_output(response, args.relevance_threshold)
+    relevant_files, output_string = process_output(response, args.relevance_threshold, repo_root)
 
-    # Print relevant files and copy to clipboard
-    output = "\n".join(str(file) for file in relevant_files)
-    print("Relevant files:")
-    print(output)
-
+    # Copy relevant file paths and contents to clipboard
     try:
-        pyperclip.copy(output)
-        print("Relevant files copied to clipboard.")
+        pyperclip.copy(output_string)
+        print("\nRelevant file paths and contents copied to clipboard.")
     except pyperclip.PyperclipException:
-        print("Unable to copy to clipboard. Please copy the output manually.")
+        print("\nUnable to copy to clipboard. Please copy the output manually.")
+
+    # Print summary of relevant files
+    print("\nSummary of relevant files:")
+    for file in relevant_files:
+        print(file)
 
 if __name__ == "__main__":
     main()

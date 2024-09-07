@@ -49,17 +49,15 @@ class OpenAIClient:
             }
         }
 
-        print(f"Schema: {json.dumps(schema, indent=4)}")
-
-        print(json.dumps(data))
         response = requests.post(self.OPENAI_API_URL, headers=headers, json=data, timeout=self.timeout)
 
         if not response.ok:
             print(response.text)
             response.raise_for_status()
 
+        print(response.json())
+
         content = response.json()['choices'][0]['message']['content']
-        print(content)
 
         return json.loads(content)
 
