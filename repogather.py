@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 import pyperclip
+import tiktoken
 
 from file_filter import filter_code_files
 from token_counter import count_tokens, calculate_cost, MODELS
@@ -24,6 +25,10 @@ def get_user_confirmation(total_tokens, cost, num_files, model):
             return False
         else:
             print("Please enter 'y' for yes or 'n' for no.")
+
+def count_clipboard_tokens(text):
+    encoder = tiktoken.encoding_for_model("gpt-4-0125-preview")
+    return len(encoder.encode(text))
 
 def main():
     parser = argparse.ArgumentParser(description="Gather and analyze repository files based on relevance to a query.")
@@ -58,7 +63,8 @@ def main():
 
         try:
             pyperclip.copy(output_string)
-            print("\nAll file contents copied to clipboard.")
+            clipboard_tokens = count_clipboard_tokens(output_string)
+            print(f"\nFile contents copied to clipboard. Total tokens: {clipboard_tokens}")
         except pyperclip.PyperclipException:
             print("\nUnable to copy to clipboard. Please copy the output manually.")
 
@@ -89,7 +95,8 @@ def main():
     # Copy relevant file paths and contents to clipboard
     try:
         pyperclip.copy(output_string)
-        print("\nRelevant file paths and contents copied to clipboard.")
+        clipboard_tokens = count_clipboard_tokens(output_string)
+        print(f"\nRelevant file paths and contents copied to clipboard. Total tokens: {clipboard_tokens}")
     except pyperclip.PyperclipException:
         print("\nUnable to copy to clipboard. Please copy the output manually.")
 
