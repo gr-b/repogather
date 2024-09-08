@@ -5,7 +5,7 @@ from pathlib import Path
 import pyperclip
 import tiktoken
 
-from .file_filter import filter_code_files
+from .file_filter import filter_code_files, parse_gitignore, is_ignored_by_gitignore
 from .token_counter import count_tokens, calculate_cost, MODELS, format_tokens, analyze_tokens
 from .llm_query import query_llm
 from .output_processor import process_output
@@ -45,6 +45,7 @@ def main():
     parser.add_argument("--include-test", action="store_true", help="Include test files")
     parser.add_argument("--include-config", action="store_true", help="Include configuration files")
     parser.add_argument("--include-ecosystem", action="store_true", help="Include ecosystem-specific files and directories")
+    parser.add_argument("--include-gitignored", action="store_true", help="Include files that are gitignored")
     parser.add_argument("--exclude", action="append", default=[], help="Exclude files containing the specified path fragment")
     parser.add_argument("--relevance-threshold", type=int, default=50, help="Relevance threshold (0-100)")
     parser.add_argument("--model", default="gpt-4o-mini-2024-07-18", choices=MODELS.keys(), help="LLM model to use")
@@ -56,10 +57,16 @@ def main():
     repo_root = Path.cwd()
 
     # Filter code files
-    code_files = list(filter_code_files(repo_root, include_test=args.include_test,
+    code_files = list(filter_code_files(repo_root,
+                                        include_test=args.include_test,
                                         include_config=args.include_config,
                                         include_ecosystem=args.include_ecosystem,
                                         exclude_patterns=args.exclude))
+
+    # If --include-gitignored is not set, filter out gitignored files
+    if not args.include_gitignored:
+        gitignore_patterns = parse_gitignore(repo_root)
+        code_files = [f for f in code_files if not is_ignored_by_gitignore(f, gitignore_patterns)]
 
     if args.all:
         output_string = ""
