@@ -55,9 +55,9 @@ class OpenAIClient:
             print(response.text)
             response.raise_for_status()
 
-        print(response.json())
-
         content = response.json()['choices'][0]['message']['content']
+
+        print(json.loads(content)['thoughts'])
 
         return json.loads(content)
 
