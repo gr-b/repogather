@@ -7,12 +7,14 @@ repogather is a command-line tool that copies all relevant files (with their rel
 - Filters and analyzes code files in a repository
 - Excludes test and configuration files by default (with options to include them)
 - Filters out common ecosystem-specific directories and files (e.g., node_modules, venv)
+- Respects .gitignore rules (with option to include ignored files)
 - Handles repositories of any size by splitting content into multiple requests when necessary
 - Estimates token count and API usage cost before processing
 - Uses OpenAI's GPT models to evaluate file relevance
 - Supports various methods of providing the OpenAI API key
 - Copies relevant files and their contents to the clipboard
 - Can return all files without LLM analysis
+- Allows custom exclusion of files or directories
 
 ## Installation
 
@@ -45,6 +47,8 @@ repogather [QUERY] [OPTIONS]
 - `--include-test`: Include test files in the analysis
 - `--include-config`: Include configuration files in the analysis
 - `--include-ecosystem`: Include ecosystem-specific files and directories (e.g., node_modules, venv)
+- `--include-gitignored`: Include files that are gitignored
+- `--exclude PATTERN`: Exclude files containing the specified path fragment (can be used multiple times)
 - `--relevance-threshold THRESHOLD`: Set the relevance threshold (0-100, default: 50)
 - `--model MODEL`: Specify the OpenAI model to use (default: gpt-4o-mini-2024-07-18)
 - `--openai-key KEY`: Provide the OpenAI API key directly
@@ -63,32 +67,35 @@ repogather [QUERY] [OPTIONS]
    3. Only return files with a relevance score of 70 or higher
    4. Use the GPT-4o model from August 2024 for analysis
 
-2. Return all files without LLM analysis, including ecosystem files:
+2. Return all files without LLM analysis, including ecosystem files but excluding a specific directory:
    ```
-   repogather --all --include-test --include-config --include-ecosystem
+   repogather --all --include-test --include-config --include-ecosystem --include-gitignored --exclude "legacy_code"
    ```
 
    This command will:
    1. Gather all code files in the repository
-   2. Include test and config files in the output (if present, inferred from file extension)
-   3. Include ecosystem-specific files and directories (e.g., node_modules, venv)
-   4. Copy all gathered files to the clipboard without using LLM analysis
+   2. Include test, config, and ecosystem-specific files in the output
+   3. Include files that would normally be ignored by .gitignore
+   4. Exclude any files or directories containing "legacy_code" in their path
+   5. Copy all gathered files to the clipboard without using LLM analysis
 
 ## How It Works
 
 repogather performs the following steps:
 
 1. Scans the current directory and its subdirectories for code files
-2. Filters out test, configuration, and ecosystem-specific files (unless included via options)
-3. If `--all` option is used, returns all filtered files
-4. Otherwise:
+2. Filters out test, configuration, ecosystem-specific, and gitignored files (unless included via options)
+3. Applies any custom exclusion patterns
+4. If `--all` option is used, returns all filtered files
+5. Otherwise:
    a. Counts the tokens in the filtered files and estimates the API usage cost
-   b. Asks for user confirmation before proceeding
-   c. If the total tokens exceed the model's limit, splits the content into multiple requests
-   d. Sends the file contents and the query to the specified OpenAI model
-   e. Processes the model's response to rank files by relevance
-   f. Filters the files by the specified relevance threshold
-5. Copies the relevant file paths and contents to the clipboard
+   b. Displays information about large files (>30,000 tokens) and directories (>100,000 tokens)
+   c. Asks for user confirmation before proceeding
+   d. If the total tokens exceed the model's limit, splits the content into multiple requests
+   e. Sends the file contents and the query to the specified OpenAI model
+   f. Processes the model's response to rank files by relevance
+   g. Filters the files by the specified relevance threshold
+6. Copies the relevant file paths and contents to the clipboard
 
 ## Note
 
