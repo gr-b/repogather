@@ -6,6 +6,8 @@ repogather is a command-line tool that copies all relevant files (with their rel
 
 - Filters and analyzes code files in a repository
 - Excludes test and configuration files by default (with options to include them)
+- Filters out common ecosystem-specific directories and files (e.g., node_modules, venv)
+- Handles repositories of any size by splitting content into multiple requests when necessary
 - Estimates token count and API usage cost before processing
 - Uses OpenAI's GPT models to evaluate file relevance
 - Supports various methods of providing the OpenAI API key
@@ -42,6 +44,7 @@ repogather [QUERY] [OPTIONS]
 
 - `--include-test`: Include test files in the analysis
 - `--include-config`: Include configuration files in the analysis
+- `--include-ecosystem`: Include ecosystem-specific files and directories (e.g., node_modules, venv)
 - `--relevance-threshold THRESHOLD`: Set the relevance threshold (0-100, default: 50)
 - `--model MODEL`: Specify the OpenAI model to use (default: gpt-4o-mini-2024-07-18)
 - `--openai-key KEY`: Provide the OpenAI API key directly
@@ -55,36 +58,40 @@ repogather [QUERY] [OPTIONS]
    ```
 
    This command will:
-  1. Search for files related to user authentication
-  2. Include configuration files in the search
-  3. Only return files with a relevance score of 70 or higher
-  4. Use the GPT-4o model from August 2024 for analysis
+   1. Search for files related to user authentication
+   2. Include configuration files in the search
+   3. Only return files with a relevance score of 70 or higher
+   4. Use the GPT-4o model from August 2024 for analysis
 
-2. Return all files without LLM analysis:
+2. Return all files without LLM analysis, including ecosystem files:
    ```
-   repogather --all --include-test --include-config
+   repogather --all --include-test --include-config --include-ecosystem
    ```
 
    This command will:
-  1. Gather all code files in the repository
-  2. Include test and config files in the output (if present, inferred from file extension)
-  3. Copy all gathered files to the clipboard without using LLM analysis
+   1. Gather all code files in the repository
+   2. Include test and config files in the output (if present, inferred from file extension)
+   3. Include ecosystem-specific files and directories (e.g., node_modules, venv)
+   4. Copy all gathered files to the clipboard without using LLM analysis
 
 ## How It Works
 
 repogather performs the following steps:
 
 1. Scans the current directory and its subdirectories for code files
-2. Filters out test and configuration files (unless included via options)
+2. Filters out test, configuration, and ecosystem-specific files (unless included via options)
 3. If `--all` option is used, returns all filtered files
 4. Otherwise:
    a. Counts the tokens in the filtered files and estimates the API usage cost
    b. Asks for user confirmation before proceeding
-   c. Sends the file contents and the query to the specified OpenAI model
-   d. Processes the model's response to rank files by relevance
-   e. Filters the files by the specified relevance threshold
+   c. If the total tokens exceed the model's limit, splits the content into multiple requests
+   d. Sends the file contents and the query to the specified OpenAI model
+   e. Processes the model's response to rank files by relevance
+   f. Filters the files by the specified relevance threshold
 5. Copies the relevant file paths and contents to the clipboard
 
 ## Note
 
 repogather requires an active OpenAI API key when using LLM analysis. It will prompt you to confirm the expected cost of the query (in input tokens) before proceeding. When using the `--all` option, no API key is required.
+
+repogather handles repositories of any size by splitting the content into multiple requests when necessary. This allows for analysis of large codebases without hitting API token limits.

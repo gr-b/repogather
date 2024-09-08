@@ -33,6 +33,7 @@ def main():
     parser.add_argument("query", nargs='?', default=None, help="Natural language query to filter files")
     parser.add_argument("--include-test", action="store_true", help="Include test files")
     parser.add_argument("--include-config", action="store_true", help="Include configuration files")
+    parser.add_argument("--include-ecosystem", action="store_true", help="Include ecosystem-specific files and directories (like /node_modules/)")
     parser.add_argument("--relevance-threshold", type=int, default=50, help="Relevance threshold (0-100)")
     parser.add_argument("--model", default="gpt-4o-mini-2024-07-18", choices=MODELS.keys(), help="LLM model to use")
     parser.add_argument("--openai-key", help="OpenAI API key")
@@ -43,7 +44,9 @@ def main():
     repo_root = Path.cwd()
 
     # Filter code files
-    code_files = list(filter_code_files(repo_root, include_test=args.include_test, include_config=args.include_config))
+    code_files = list(filter_code_files(repo_root, include_test=args.include_test,
+                                        include_config=args.include_config,
+                                        include_ecosystem=args.include_ecosystem))
 
     if args.all:
         output_string = ""
