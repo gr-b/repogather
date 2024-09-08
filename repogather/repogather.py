@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import os
 import sys
@@ -7,11 +5,11 @@ from pathlib import Path
 import pyperclip
 import tiktoken
 
-from file_filter import filter_code_files
-from token_counter import count_tokens, calculate_cost, MODELS
-from llm_query import query_llm
-from output_processor import process_output
-from openai_client import OpenAIClient
+from .file_filter import filter_code_files
+from .token_counter import count_tokens, calculate_cost, MODELS
+from .llm_query import query_llm
+from .output_processor import process_output
+from .openai_client import OpenAIClient
 
 def get_user_confirmation(total_tokens, cost, num_files, model):
     print(f"\nPreparing to send {total_tokens} tokens from {num_files} files to the LLM.")

@@ -1,1 +1,3 @@
 include README.md
+include LICENSE
+recursive-include repogather *.py

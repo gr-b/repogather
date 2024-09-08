@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from openai_client import OpenAIClient
+from .openai_client import OpenAIClient
 
 def query_llm(query: str, file_contents: dict, model: str, client: OpenAIClient):
     # Convert file paths to strings
