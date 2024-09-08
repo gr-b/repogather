@@ -6,15 +6,26 @@ import pyperclip
 import tiktoken
 
 from .file_filter import filter_code_files
-from .token_counter import count_tokens, calculate_cost, MODELS
+from .token_counter import count_tokens, calculate_cost, MODELS, format_tokens, analyze_tokens
 from .llm_query import query_llm
 from .output_processor import process_output
 from .openai_client import OpenAIClient
 
-def get_user_confirmation(total_tokens, cost, num_files, model):
-    print(f"\nPreparing to send {total_tokens} tokens from {num_files} files to the LLM.")
+def get_user_confirmation(total_tokens, cost, num_files, model, large_files, large_dirs):
+    print(f"\nPreparing to send {format_tokens(total_tokens)} tokens from {num_files} files to the LLM.")
     print(f"Estimated cost: ${cost:.4f}")
     print(f"Selected model: {model}")
+
+    if large_files:
+        print("\nLarge files (>30,000 tokens):")
+        for file_path, tokens in large_files:
+            print(f"  {file_path}: {format_tokens(tokens)} tokens")
+
+    if large_dirs:
+        print("\nLarge directories (>100,000 tokens):")
+        for dir_path, tokens in large_dirs:
+            print(f"  {dir_path}: {format_tokens(tokens)} tokens")
+
     while True:
         response = input("Do you want to proceed? (y/n): ").lower()
         if response in ['y', 'yes']:
@@ -33,7 +44,8 @@ def main():
     parser.add_argument("query", nargs='?', default=None, help="Natural language query to filter files")
     parser.add_argument("--include-test", action="store_true", help="Include test files")
     parser.add_argument("--include-config", action="store_true", help="Include configuration files")
-    parser.add_argument("--include-ecosystem", action="store_true", help="Include ecosystem-specific files and directories (like /node_modules/)")
+    parser.add_argument("--include-ecosystem", action="store_true", help="Include ecosystem-specific files and directories")
+    parser.add_argument("--exclude", action="append", default=[], help="Exclude files containing the specified path fragment")
     parser.add_argument("--relevance-threshold", type=int, default=50, help="Relevance threshold (0-100)")
     parser.add_argument("--model", default="gpt-4o-mini-2024-07-18", choices=MODELS.keys(), help="LLM model to use")
     parser.add_argument("--openai-key", help="OpenAI API key")
@@ -46,7 +58,8 @@ def main():
     # Filter code files
     code_files = list(filter_code_files(repo_root, include_test=args.include_test,
                                         include_config=args.include_config,
-                                        include_ecosystem=args.include_ecosystem))
+                                        include_ecosystem=args.include_ecosystem,
+                                        exclude_patterns=args.exclude))
 
     if args.all:
         output_string = ""
@@ -65,7 +78,7 @@ def main():
         try:
             pyperclip.copy(output_string)
             clipboard_tokens = count_clipboard_tokens(output_string)
-            print(f"\nFile contents copied to clipboard. Total tokens: {clipboard_tokens}")
+            print(f"\nFile contents copied to clipboard. Total tokens: {format_tokens(clipboard_tokens)}")
         except pyperclip.PyperclipException:
             print("\nUnable to copy to clipboard. Please copy the output manually.")
 
@@ -76,11 +89,14 @@ def main():
         sys.exit(1)
 
     # Count tokens and calculate cost
-    total_tokens, file_contents = count_tokens(repo_root, code_files)
+    total_tokens, file_contents, file_tokens, dir_tokens = count_tokens(repo_root, code_files)
     cost = calculate_cost(total_tokens, args.model)
 
+    # Analyze token distribution
+    large_files, large_dirs = analyze_tokens(file_tokens, dir_tokens)
+
     # Get user confirmation
-    if not get_user_confirmation(total_tokens, cost, len(code_files), args.model):
+    if not get_user_confirmation(total_tokens, cost, len(code_files), args.model, large_files, large_dirs):
         print("Operation cancelled by user.")
         sys.exit(0)
 
@@ -97,7 +113,7 @@ def main():
     try:
         pyperclip.copy(output_string)
         clipboard_tokens = count_clipboard_tokens(output_string)
-        print(f"\nRelevant file paths and contents copied to clipboard. Total tokens: {clipboard_tokens}")
+        print(f"\nRelevant file paths and contents copied to clipboard. Total tokens: {format_tokens(clipboard_tokens)}")
     except pyperclip.PyperclipException:
         print("\nUnable to copy to clipboard. Please copy the output manually.")
 

@@ -85,11 +85,15 @@ def is_config_file(file_path: Path) -> bool:
     return (file_path.suffix.lower() in config_extensions or
             any(name in file_path.stem.lower() for name in config_names))
 
-def filter_code_files(root_dir: Path, include_test: bool = False, include_config: bool = False, include_ecosystem: bool = False):
+def filter_code_files(root_dir: Path, include_test: bool = False, include_config: bool = False, include_ecosystem: bool = False, exclude_patterns: list = None):
+    if exclude_patterns is None:
+        exclude_patterns = []
+
     for file_path in root_dir.rglob('*'):
         if file_path.is_file() and is_code_file(file_path):
             relative_path = file_path.relative_to(root_dir)
             if not is_ignored_path(relative_path, include_ecosystem) and \
                (include_test or not is_test_file(relative_path)) and \
-               (include_config or not is_config_file(relative_path)):
+               (include_config or not is_config_file(relative_path)) and \
+               not any(pattern in str(relative_path) for pattern in exclude_patterns):
                 yield relative_path
