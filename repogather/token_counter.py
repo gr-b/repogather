@@ -2,6 +2,8 @@ import tiktoken
 from pathlib import Path
 from collections import defaultdict
 
+PROMPT_TOKENS = 10_000
+
 MODELS = {
     "gpt-4o": {"input_price": 5.00, "output_price": 15.00, "max_tokens": 128000},
     "gpt-4o-2024-08-06": {"input_price": 2.50, "output_price": 10.00, "max_tokens": 128000},
@@ -64,8 +66,11 @@ def split_contents(file_contents, max_tokens):
     current_batch = {}
     current_tokens = 0
 
-    for file_path, (content, tokens) in file_contents.items():
-        if current_tokens + tokens > max_tokens:
+    encoder = tiktoken.encoding_for_model("gpt-4-0125-preview")
+
+    for file_path, content in file_contents.items():
+        tokens = len(encoder.encode(f"-- File: {file_path} --\n\n{content}\n\n"))
+        if current_tokens + tokens > (max_tokens - PROMPT_TOKENS):
             batches.append(current_batch)
             current_batch = {}
             current_tokens = 0

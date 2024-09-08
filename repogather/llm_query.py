@@ -14,6 +14,10 @@ def query_llm(query: str, file_contents: dict, model: str, client: OpenAIClient)
     for batch in batches:
         batch_contents = {str(path): content for path, content in batch.items()}
 
+        rendered = ""
+        for path_string, content in batch_contents.items():
+            rendered += f"-- File: {path_string} --\n\n{content}\n\n"
+
         prompt = f"""
         Given the following query: "{query}"
 
@@ -22,7 +26,7 @@ def query_llm(query: str, file_contents: dict, model: str, client: OpenAIClient)
 
         Here are the files and their contents (paths are relative to the repository root):
 
-        {json.dumps(batch_contents, indent=2)}
+        {rendered}
 
         Before providing the final output, please explicitly think through your thoughts on which files are most relevant and why.
 
@@ -33,16 +37,12 @@ def query_llm(query: str, file_contents: dict, model: str, client: OpenAIClient)
         response_format = {
             "thoughts": str,
             "relevance_scores": {
-                "type": "object",
-                "additionalProperties": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 100
-                }
+
             }
         }
 
         response = client.chat(prompt, response_format, model=model)
+        print(response)
         
         all_relevance_scores.update(response['relevance_scores'])
         all_thoughts.append(response['thoughts'])
