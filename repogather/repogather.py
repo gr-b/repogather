@@ -5,7 +5,7 @@ from pathlib import Path
 import pyperclip
 import tiktoken
 
-from .file_filter import filter_code_files, parse_gitignore, is_ignored_by_gitignore
+from .file_filter import filter_code_files, parse_gitignore, is_ignored_by_gitignore, find_repo_root
 from .token_counter import count_tokens, calculate_cost, MODELS, format_tokens, analyze_tokens
 from .llm_query import query_llm
 from .output_processor import process_output
@@ -54,19 +54,24 @@ def main():
     args = parser.parse_args()
 
     # Get the repository root directory
-    repo_root = Path.cwd()
+    try:
+        repo_root = find_repo_root(Path.cwd())
+    except ValueError:
+        print("Error: Not a git repository (or any of the parent directories)")
+        sys.exit(1)
 
     # Filter code files
     code_files = list(filter_code_files(repo_root,
-                                        include_test=args.include_test,
-                                        include_config=args.include_config,
-                                        include_ecosystem=args.include_ecosystem,
-                                        exclude_patterns=args.exclude))
+                                            include_test=args.include_test,
+                                            include_config=args.include_config,
+                                            include_ecosystem=args.include_ecosystem,
+                                            exclude_patterns=args.exclude,
+                                            include_gitignored=args.include_gitignored))
 
     # If --include-gitignored is not set, filter out gitignored files
-    if not args.include_gitignored:
-        gitignore_patterns = parse_gitignore(repo_root)
-        code_files = [f for f in code_files if not is_ignored_by_gitignore(f, gitignore_patterns)]
+    #if not args.include_gitignored:
+    #    gitignore_patterns = parse_gitignore(repo_root)
+    #    code_files = [f for f in code_files if not is_ignored_by_gitignore(f, gitignore_patterns)]
 
     if args.all:
         output_string = ""

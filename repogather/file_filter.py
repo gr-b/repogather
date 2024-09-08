@@ -1,6 +1,5 @@
 from pathlib import Path
 import re
-import fnmatch
 import os
 
 COMMON_IGNORE_PATTERNS = [
@@ -53,39 +52,28 @@ COMMON_IGNORE_PATTERNS = [
     r'yarn\.lock$',
 ]
 
-def is_ignored_path(file_path: Path, include_ecosystem: bool) -> bool:
-    if include_ecosystem:
-        return False
+CODE_EXTENSIONS = {
+    '.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.c', '.cpp', '.cs', '.go', '.rb', '.php',
+    '.swift', '.kt', '.rs', '.scala', '.html', '.css', '.scss', '.sass', '.less', '.sql',
+    '.sh', '.bash', '.yml', '.yaml', '.json', '.xml', '.md', '.txt', '.gitignore',
+    '.dockerignore', '.env', '.ini', '.cfg', '.conf'
+}
 
-    str_path = str(file_path)
-    return any(re.search(pattern, str_path) for pattern in COMMON_IGNORE_PATTERNS)
+SPECIAL_FILES = {
+    'Dockerfile', 'docker-compose.yml', 'package.json', 'requirements.txt', 'Gemfile',
+    'Pipfile', 'Cargo.toml', 'pom.xml', 'build.gradle'
+}
 
-def is_code_file(file_path: Path) -> bool:
-    code_extensions = {
-        '.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.c', '.cpp', '.cs', '.go', '.rb', '.php',
-        '.swift', '.kt', '.rs', '.scala', '.html', '.css', '.scss', '.sass', '.less', '.sql',
-        '.sh', '.bash', '.yml', '.yaml', '.json', '.xml', '.md', '.txt', '.gitignore',
-        '.dockerignore', '.env', '.ini', '.cfg', '.conf'
-    }
-    special_files = {
-        'Dockerfile', 'docker-compose.yml', 'package.json', 'requirements.txt', 'Gemfile',
-        'Pipfile', 'Cargo.toml', 'pom.xml', 'build.gradle'
-    }
-    return file_path.suffix.lower() in code_extensions or file_path.name in special_files
+CONFIG_EXTENSIONS = {'.yml', '.yaml', '.json', '.xml', '.ini', '.cfg', '.conf'}
+CONFIG_NAMES = {'config', 'settings', 'environment'}
 
-def is_test_file(file_path: Path) -> bool:
-    test_patterns = [
-        'test_', '_test', 'spec_', '_spec', 'Test', 'Spec',
-        '/tests/', '/test/', '/specs/', '/spec/',
-        '__tests__', '__test__', '__specs__', '__spec__'
-    ]
-    return any(pattern in str(file_path) for pattern in test_patterns)
-
-def is_config_file(file_path: Path) -> bool:
-    config_extensions = {'.yml', '.yaml', '.json', '.xml', '.ini', '.cfg', '.conf'}
-    config_names = {'config', 'settings', 'environment'}
-    return (file_path.suffix.lower() in config_extensions or
-            any(name in file_path.stem.lower() for name in config_names))
+def find_repo_root(start_path: Path) -> Path:
+    current_path = start_path.absolute()
+    while current_path != current_path.parent:
+        if (current_path / '.git').is_dir():
+            return current_path
+        current_path = current_path.parent
+    return start_path  # If no .git directory found, return the start path
 
 def parse_gitignore(repo_root):
     gitignore_patterns = []
@@ -95,30 +83,69 @@ def parse_gitignore(repo_root):
             for line in f:
                 line = line.strip()
                 if line and not line.startswith('#'):
-                    gitignore_patterns.append(line)
+                    pattern = re.escape(line).replace(r'\*', '.*').replace(r'\?', '.')
+                    if pattern.endswith('/'):
+                        pattern += '.*'
+                    else:
+                        pattern += '$'
+                    gitignore_patterns.append(re.compile(pattern))
     return gitignore_patterns
 
-def is_ignored_by_gitignore(file_path, gitignore_patterns):
+def is_ignored_by_gitignore(path, gitignore_patterns):
+    str_path = str(path).replace(os.sep, '/')
     for pattern in gitignore_patterns:
-        if pattern.endswith('/'):
-            if any(part == pattern[:-1] for part in file_path.parts):
-                return True
-        elif fnmatch.fnmatch(str(file_path), pattern):
+        if pattern.match(str_path):
             return True
+        if '/' in str_path:
+            parent_path = '/'.join(str_path.split('/')[:-1]) + '/'
+            if pattern.match(parent_path):
+                return True
     return False
 
-def filter_code_files(root_dir: Path, include_test: bool = False, include_config: bool = False, include_ecosystem: bool = False, exclude_patterns: list = None):
+def is_ignored_path(path: Path, include_ecosystem: bool) -> bool:
+    if include_ecosystem:
+        return False
+    str_path = str(path)
+    return any(re.search(pattern, str_path) for pattern in COMMON_IGNORE_PATTERNS)
+
+def should_include_file(file_path: Path, include_test: bool, include_config: bool) -> bool:
+    if file_path.suffix.lower() in CODE_EXTENSIONS or file_path.name in SPECIAL_FILES:
+        if not include_test and ('test' in file_path.stem.lower() or 'spec' in file_path.stem.lower()):
+            return False
+        if not include_config and (file_path.suffix.lower() in CONFIG_EXTENSIONS or
+                                   any(name in file_path.stem.lower() for name in CONFIG_NAMES)):
+            return False
+        return True
+    return False
+
+def filter_code_files(start_dir: Path, include_test: bool = False, include_config: bool = False,
+                      include_ecosystem: bool = False, exclude_patterns: list = None,
+                      include_gitignored: bool = False):
     if exclude_patterns is None:
         exclude_patterns = []
 
-    gitignore_patterns = parse_gitignore(root_dir)
+    repo_root = find_repo_root(start_dir)
+    gitignore_patterns = parse_gitignore(repo_root) if not include_gitignored else []
+    gitignore_cache = {}
 
-    for file_path in root_dir.rglob('*'):
-        if file_path.is_file() and is_code_file(file_path):
-            relative_path = file_path.relative_to(root_dir)
-            if not is_ignored_path(relative_path, include_ecosystem) and \
-               (include_test or not is_test_file(relative_path)) and \
-               (include_config or not is_config_file(relative_path)) and \
+    for root, dirs, files in os.walk(repo_root):
+        rel_root = Path(root).relative_to(repo_root)
+
+        # Early directory filtering
+        dirs[:] = [d for d in dirs if not is_ignored_path(rel_root / d, include_ecosystem)]
+
+        # Check gitignore for the current directory
+        if not include_gitignored:
+            if str(rel_root) not in gitignore_cache:
+                gitignore_cache[str(rel_root)] = is_ignored_by_gitignore(rel_root, gitignore_patterns)
+            if gitignore_cache[str(rel_root)]:
+                dirs[:] = []  # Skip all subdirectories
+                continue
+
+        for file in files:
+            file_path = Path(root) / file
+            relative_path = file_path.relative_to(repo_root)
+            if should_include_file(file_path, include_test, include_config) and \
                not any(pattern in str(relative_path) for pattern in exclude_patterns) and \
-               not is_ignored_by_gitignore(relative_path, gitignore_patterns):
+               (include_gitignored or not is_ignored_by_gitignore(relative_path, gitignore_patterns)):
                 yield relative_path
