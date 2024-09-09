@@ -1,6 +1,7 @@
 import json
 import os
 import requests
+import sys
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 
@@ -46,22 +47,50 @@ class OpenAIClient:
                     'name': 'sdfsdfsdf',
                     'schema': schema,
                 }
-            }
+            },
+            'stream': True  # Enable streaming
         }
 
-        response = requests.post(self.OPENAI_API_URL, headers=headers, json=data, timeout=self.timeout)
+        response = requests.post(self.OPENAI_API_URL, headers=headers, json=data, timeout=self.timeout, stream=True)
 
         if not response.ok:
             print(response.text)
             response.raise_for_status()
 
-        content = response.json()['choices'][0]['message']['content']
+        content = self._process_streaming_response(response)
 
         content = json.loads(content)
         if 'thoughts' in content:
             print(content['thoughts'])
 
         return content
+
+    def _process_streaming_response(self, response):
+        full_content = ""
+        buffer = ""
+        for chunk in response.iter_lines():
+            if chunk:
+                chunk = chunk.decode('utf-8')
+                if chunk.startswith("data: "):
+                    chunk = chunk[6:]  # Remove "data: " prefix
+                    if chunk == "[DONE]":
+                        break
+                    try:
+                        chunk_data = json.loads(chunk)
+                        if 'choices' in chunk_data and len(chunk_data['choices']) > 0:
+                            content = chunk_data['choices'][0]['delta'].get('content', '')
+                            if content:
+                                buffer += content
+                                full_content += content
+                                # Update the console output
+                                sys.stdout.write('\r' + ' ' * 100 + '\r')  # Clear the line
+                                sys.stdout.write(buffer[-100:])  # Print last 100 characters
+                                sys.stdout.flush()
+                    except json.JSONDecodeError:
+                        pass  # Ignore non-JSON lines
+
+        print()  # Print a newline at the end
+        return full_content
 
     def _hash_to_json_schema(self, hash: Dict[str, Any]) -> Dict[str, Any]:
         schema = {'type': 'object', 'properties': {}, 'required': []}
