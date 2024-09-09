@@ -57,9 +57,11 @@ class OpenAIClient:
 
         content = response.json()['choices'][0]['message']['content']
 
-        print(json.loads(content)['thoughts'])
+        content = json.loads(content)
+        if 'thoughts' in content:
+            print(content['thoughts'])
 
-        return json.loads(content)
+        return content
 
     def _hash_to_json_schema(self, hash: Dict[str, Any]) -> Dict[str, Any]:
         schema = {'type': 'object', 'properties': {}, 'required': []}
