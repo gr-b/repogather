@@ -7,3 +7,10 @@ pip uninstall repogather
 pip install -e .
 
 # Doing the `-e` local, allows you to make changes to the local package and see their effects without having to reinstall.
+
+mkdir -p repogather/domain repogather/application repogather/core repogather/interfaces/cli repogather/utils
+touch repogather/domain/{__init__.py,models.py,exceptions.py}
+touch repogather/application/{__init__.py,use_cases.py,output.py}
+touch repogather/core/{__init__.py,repository.py,analysis.py,file_filter.py,token_counter.py,openai.py}
+touch repogather/interfaces/cli/{__init__.py,commands.py,parser.py}
+touch repogather/utils/{__init__.py,logging.py}
