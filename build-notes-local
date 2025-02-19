@@ -1,0 +1,9 @@
+### Build and install locally
+
+# First, uninstall the package:
+pip uninstall repogather
+
+# Then, install the local version:
+pip install -e .
+
+# Doing the `-e` local, allows you to make changes to the local package and see their effects without having to reinstall.

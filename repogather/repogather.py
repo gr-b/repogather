@@ -5,7 +5,7 @@ from pathlib import Path
 import pyperclip
 import tiktoken
 
-from .file_filter import filter_code_files, parse_gitignore, is_ignored_by_gitignore, find_repo_root
+from .file_filter import filter_code_files, is_ignored_by_gitignore, find_repo_root
 from .token_counter import count_tokens, calculate_cost, MODELS, format_tokens, analyze_tokens
 from .llm_query import query_llm
 from .output_processor import process_output
