@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import List
-from ..domain.models import Repository, RepositoryFile, GatherOptions
+from ..domain.models import Repository, RepositoryFile, GatherOptions, AnalysisOptions
 
 class RepositoryService:
     """Service for loading and managing repository files."""
@@ -9,18 +9,20 @@ class RepositoryService:
         self.file_filter = file_filter
         self.token_counter = token_counter
     
-    async def load_repository(self, path: Path, options: GatherOptions) -> Repository:
+    async def load_repository(self, path: Path, options: GatherOptions | AnalysisOptions) -> Repository:
         """
         Load a repository from the given path using the specified options.
         
         Args:
-            path: Root path of the repository
+            path: Repository root path
             options: Options controlling which files to include
             
         Returns:
             Repository object containing the filtered files
         """
-        files = self.file_filter.filter_files(path, options)
+        # If we get AnalysisOptions, use its gather_options
+        gather_options = options.gather_options if hasattr(options, 'gather_options') else options
+        files = self.file_filter.filter_files(path, gather_options)
         repo_files = [await self._create_repository_file(f) for f in files]
         
         return Repository(

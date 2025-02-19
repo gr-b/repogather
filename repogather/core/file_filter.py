@@ -84,6 +84,7 @@ class FileFilter:
         """Check if file is git ignored by parsing .gitignore files."""
         try:
             rel_path = path.relative_to(root)
+            rel_str = str(rel_path)
             
             # Check each directory up to root for .gitignore files
             current = path.parent
@@ -97,8 +98,16 @@ class FileFilter:
                                 if any(part == pattern[:-1] for part in rel_path.parts):
                                     return True
                             else:  # File pattern
-                                if fnmatch.fnmatch(str(rel_path), pattern):
+                                # Check both the full path and just the filename
+                                if fnmatch.fnmatch(rel_str, pattern) or fnmatch.fnmatch(path.name, pattern):
                                     return True
+                                # Also check relative to current directory
+                                try:
+                                    rel_to_current = str(path.relative_to(current))
+                                    if fnmatch.fnmatch(rel_to_current, pattern):
+                                        return True
+                                except ValueError:
+                                    pass
                 current = current.parent
             return False
         except (OSError, ValueError):

@@ -82,9 +82,13 @@ def test_all_nested_gitignore(fake_repo: Path):
     (subdir / "included.py").write_text("This nested file should be included.")
     (subdir / "nested_ignore.py").write_text("This nested file should be ignored.")
 
-    # Get filtered files
-    files = list(filter_code_files(fake_repo))
-    file_paths = [str(f) for f in files]
+    # Get filtered files using new FileFilter class
+    file_filter = FileFilter()
+    options = GatherOptions()
+    files = file_filter.filter_files(fake_repo, options)
+    
+    # Convert paths to strings relative to repo root for comparison
+    file_paths = [str(f.relative_to(fake_repo)) for f in files]
     
     assert "subdir/included.py" in file_paths, "Expected subdir/included.py to appear in results."
     assert "subdir/nested_ignore.py" not in file_paths, "Did not expect subdir/nested_ignore.py in results."
@@ -103,9 +107,13 @@ def test_directory_gitignore_pattern(fake_repo: Path):
     (fake_repo / "ignored_dir").mkdir()
     (fake_repo / "ignored_dir/file.py").write_text("This file should be ignored.")
 
-    # Get filtered files
-    files = list(filter_code_files(fake_repo))
-    file_paths = [str(f) for f in files]
+    # Get filtered files using new FileFilter class
+    file_filter = FileFilter()
+    options = GatherOptions()
+    files = file_filter.filter_files(fake_repo, options)
+    
+    # Convert paths to strings relative to repo root for comparison
+    file_paths = [str(f.relative_to(fake_repo)) for f in files]
     
     assert "normal_dir/file.py" in file_paths, "Expected normal_dir/file.py to appear in results."
     assert "ignored_dir/file.py" not in file_paths, "Did not expect ignored_dir/file.py in results."
@@ -160,9 +168,14 @@ async def test_gather_repository(sample_repo, services):
 async def test_analyze_repository(sample_repo, services):
     """Test analyzing repository files."""
     repo_service, analysis_service, output_service = services
+    gather_options = GatherOptions(
+        include_tests=False,
+        include_config=False
+    )
     options = AnalysisOptions(
         query="Find files related to the main application logic",
-        model="gpt-4-turbo-preview"
+        model="gpt-4-turbo-preview",
+        gather_options=gather_options
     )
     
     use_case = AnalyzeRepositoryUseCase(repo_service, analysis_service, output_service)
