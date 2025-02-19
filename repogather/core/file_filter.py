@@ -1,6 +1,7 @@
 from pathlib import Path
 import fnmatch
 from typing import List
+import subprocess
 from ..domain.models import GatherOptions
 
 class FileFilter:
@@ -23,15 +24,15 @@ class FileFilter:
             if not path.is_file():
                 continue
                 
-            if self._should_include_file(path, options):
+            if self._should_include_file(path, root, options):
                 all_files.append(path)
                 
         return all_files
     
-    def _should_include_file(self, path: Path, options: GatherOptions) -> bool:
+    def _should_include_file(self, path: Path, root: Path, options: GatherOptions) -> bool:
         """Determine if a file should be included based on options."""
         # Check if file matches any exclude patterns
-        rel_path = str(path.relative_to(path.parent))
+        rel_path = str(path.relative_to(root))
         for pattern in options.exclude_patterns:
             if fnmatch.fnmatch(rel_path, pattern):
                 return False
@@ -49,7 +50,7 @@ class FileFilter:
             return False
             
         # Handle gitignored files
-        if not options.include_gitignored and self._is_gitignored(path):
+        if not options.include_gitignored and self._is_gitignored(path, root):
             return False
             
         return True
@@ -79,8 +80,26 @@ class FileFilter:
         }
         return path.name in ecosystem_names
     
-    def _is_gitignored(self, path: Path) -> bool:
-        """Check if file is git ignored."""
-        # This is a simplified implementation
-        # Would need to actually check git status
-        return False 
+    def _is_gitignored(self, path: Path, root: Path) -> bool:
+        """Check if file is git ignored by parsing .gitignore files."""
+        try:
+            rel_path = path.relative_to(root)
+            
+            # Check each directory up to root for .gitignore files
+            current = path.parent
+            while current >= root:
+                gitignore = current / '.gitignore'
+                if gitignore.exists():
+                    with gitignore.open() as f:
+                        patterns = [p.strip() for p in f.readlines() if p.strip() and not p.startswith('#')]
+                        for pattern in patterns:
+                            if pattern.endswith('/'):  # Directory pattern
+                                if any(part == pattern[:-1] for part in rel_path.parts):
+                                    return True
+                            else:  # File pattern
+                                if fnmatch.fnmatch(str(rel_path), pattern):
+                                    return True
+                current = current.parent
+            return False
+        except (OSError, ValueError):
+            return False 
