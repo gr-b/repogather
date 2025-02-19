@@ -41,7 +41,7 @@ def count_clipboard_tokens(text):
 
 def main():
     parser = argparse.ArgumentParser(description="Gather and analyze repository files based on relevance to a query.")
-    parser.add_argument("query", nargs='?', default=None, help="Natural language query to filter files")
+    parser.add_argument("--llmfilter", help="Use LLM to filter files based on this query")
     parser.add_argument("--include-test", action="store_true", help="Include test files")
     parser.add_argument("--include-config", action="store_true", help="Include configuration files")
     parser.add_argument("--include-ecosystem", action="store_true", help="Include ecosystem-specific files and directories")
@@ -50,7 +50,6 @@ def main():
     parser.add_argument("--relevance-threshold", type=int, default=50, help="Relevance threshold (0-100)")
     parser.add_argument("--model", default="gpt-4o-mini-2024-07-18", choices=MODELS.keys(), help="LLM model to use")
     parser.add_argument("--openai-key", help="OpenAI API key")
-    parser.add_argument("--all", action="store_true", help="Return all files without using LLM")
     args = parser.parse_args()
 
     # Get the repository root directory
@@ -62,13 +61,14 @@ def main():
 
     # Filter code files
     code_files = list(filter_code_files(repo_root,
-                                            include_test=args.include_test,
-                                            include_config=args.include_config,
-                                            include_ecosystem=args.include_ecosystem,
-                                            exclude_patterns=args.exclude,
-                                            include_gitignored=args.include_gitignored))
+                                      include_test=args.include_test,
+                                      include_config=args.include_config,
+                                      include_ecosystem=args.include_ecosystem,
+                                      exclude_patterns=args.exclude,
+                                      include_gitignored=args.include_gitignored))
 
-    if args.all:
+    if not args.llmfilter:
+        # Default behavior: copy all files to clipboard
         output_string = ""
         for file_path in code_files:
             full_path = repo_root / file_path
@@ -91,10 +91,7 @@ def main():
 
         return
 
-    if not args.query:
-        print("Error: You must provide a query when not using the --all option.")
-        sys.exit(1)
-
+    # LLM filtering flow
     # Count tokens and calculate cost
     total_tokens, file_contents, file_tokens, dir_tokens = count_tokens(repo_root, code_files)
     cost = calculate_cost(total_tokens, args.model)
@@ -111,7 +108,7 @@ def main():
     client = OpenAIClient(api_key=args.openai_key)
 
     # Query LLM
-    response = query_llm(args.query, file_contents, args.model, client)
+    response = query_llm(args.llmfilter, file_contents, args.model, client)
 
     # Process output
     relevant_files, output_string = process_output(response, args.relevance_threshold, repo_root)
