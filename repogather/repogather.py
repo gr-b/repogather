@@ -68,11 +68,6 @@ def main():
                                             exclude_patterns=args.exclude,
                                             include_gitignored=args.include_gitignored))
 
-    # If --include-gitignored is not set, filter out gitignored files
-    #if not args.include_gitignored:
-    #    gitignore_patterns = parse_gitignore(repo_root)
-    #    code_files = [f for f in code_files if not is_ignored_by_gitignore(f, gitignore_patterns)]
-
     if args.all:
         output_string = ""
         for file_path in code_files:
